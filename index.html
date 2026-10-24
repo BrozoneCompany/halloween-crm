@@ -3,17 +3,37 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Halloween CRM & Guest Management</title>
+  <title>Halloween CRM & Google Sheets Sync</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
     body { font-family: 'Inter', sans-serif; }
   </style>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen pb-12">
-  <div id="app" class="max-w-7xl mx-auto px-4 py-6">
-    <!-- Header -->
+
+  <!-- AUTH MODAL -->
+  <div id="authModal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-8 shadow-2xl text-center">
+      <div class="w-16 h-16 bg-orange-500/20 border border-orange-500/30 rounded-2xl mx-auto flex items-center justify-center text-orange-400 text-3xl mb-4">
+        🔒
+      </div>
+      <h2 class="text-xl font-bold text-white mb-2">Доступ для персоналу</h2>
+      <p class="text-xs text-slate-400 mb-6">Введіть PIN-код для доступу до хмарної CRM (код: <span class="text-orange-400 font-mono font-bold">2026</span>)</p>
+      
+      <form onsubmit="handleAuth(event)" class="space-y-4">
+        <input type="password" id="pinInput" required placeholder="PIN-код" class="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-center text-lg tracking-widest text-slate-100 focus:outline-none focus:border-orange-500">
+        <button type="submit" class="w-full py-3 bg-orange-500 hover:bg-orange-400 text-white rounded-xl font-semibold text-sm transition shadow-lg shadow-orange-500/20">
+          Увійти в систему
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MAIN APP -->
+  <div id="app" class="max-w-7xl mx-auto px-4 py-6 hidden">
     <header class="flex flex-col md:flex-row justify-between items-center gap-4 mb-8 bg-slate-800/80 p-6 rounded-2xl border border-slate-700/50 shadow-xl backdrop-blur-sm">
       <div class="flex items-center gap-3">
         <div class="w-12 h-12 rounded-xl bg-orange-500/20 border border-orange-500/30 flex items-center justify-center text-orange-400 text-2xl shadow-inner">
@@ -21,29 +41,33 @@
         </div>
         <div>
           <h1 class="text-2xl font-black tracking-tight text-white flex items-center gap-2">
-            HALLOWEEN CRM <span class="text-xs px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-400 border border-orange-500/30 font-semibold">2026</span>
+            HALLOWEEN CRM <span id="syncStatus" class="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-semibold">☁️ Онлайн хмара</span>
           </h1>
-          <p class="text-xs text-slate-400">Система управління списками та фінансами події</p>
+          <p class="text-xs text-slate-400">Синхронізація з Google Таблицею в реальному часі</p>
         </div>
       </div>
-      <div class="flex flex-wrap items-center gap-3">
-        <button onclick="toggleExpandedRoster()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-semibold text-sm transition flex items-center gap-2 shadow-lg shadow-indigo-600/20">
-          <i class="fa-solid fa-list-check"></i> Таблиця всіх гостей
+      <div class="flex flex-wrap items-center gap-2">
+        <button onclick="loadFromCloud()" class="px-3.5 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-xl font-semibold text-xs transition flex items-center gap-2 shadow">
+          <i class="fa-solid fa-rotate"></i> Оновити дані
         </button>
-        <button onclick="openAddGuestModal()" class="px-4 py-2 bg-orange-500 hover:bg-orange-400 text-white rounded-xl font-semibold text-sm transition flex items-center gap-2 shadow-lg shadow-orange-500/20">
+        <button onclick="exportToExcel()" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-semibold text-xs transition flex items-center gap-2 shadow">
+          <i class="fa-solid fa-file-excel"></i> Експорт Excel
+        </button>
+        <button onclick="toggleExpandedRoster()" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-semibold text-xs transition flex items-center gap-2 shadow">
+          <i class="fa-solid fa-list-check"></i> Таблиця
+        </button>
+        <button onclick="openAddGuestModal()" class="px-3.5 py-2 bg-orange-500 hover:bg-orange-400 text-white rounded-xl font-semibold text-xs transition flex items-center gap-2 shadow">
           <i class="fa-solid fa-user-plus"></i> Додати гостя
         </button>
       </div>
     </header>
 
-    <!-- Stats Dashboard -->
     <div id="statsContainer" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"></div>
 
-    <!-- Controls & Filters -->
     <div class="bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50 mb-6 flex flex-col md:flex-row justify-between gap-4">
       <div class="relative flex-1">
         <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
-        <input type="text" id="searchInput" oninput="renderApp()" placeholder="Пошук за ім'ям, Instagram або приміткою..." class="w-full pl-11 pr-4 py-2.5 bg-slate-900/80 border border-slate-700 rounded-xl text-sm focus:outline-none focus:border-orange-500 text-slate-200 placeholder-slate-500 transition">
+        <input type="text" id="searchInput" oninput="renderApp()" placeholder="Пошук за ім'ям, Instagram або контактом..." class="w-full pl-11 pr-4 py-2.5 bg-slate-900/80 border border-slate-700 rounded-xl text-sm focus:outline-none focus:border-orange-500 text-slate-200 placeholder-slate-500 transition">
       </div>
       <div class="flex flex-wrap gap-2">
         <button onclick="setCategoryFilter('all')" id="btnFilterAll" class="px-3.5 py-2 text-xs font-semibold rounded-xl border transition">Усі</button>
@@ -53,10 +77,9 @@
       </div>
     </div>
 
-    <!-- Cards List View -->
     <div id="cardsView" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
 
-    <!-- Expanded Full Roster Modal -->
+    <!-- Roster Modal -->
     <div id="rosterModal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
       <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-6xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
         <div class="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
@@ -101,7 +124,7 @@
     <div id="addGuestModal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
       <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-6 shadow-2xl">
         <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
-          <i class="fa-solid fa-user-plus text-orange-500"></i> Додати нового гостя
+          <i class="fa-solid fa-user-plus text-orange-500"></i> Зареєструвати нового гостя
         </h3>
         <form onsubmit="handleAddGuest(event)" class="space-y-4">
           <div>
@@ -127,11 +150,15 @@
           </div>
           <div>
             <label class="block text-xs font-semibold text-slate-400 mb-1">Instagram або Телефон *</label>
-            <input type="text" id="newGuestContact" required placeholder="https://instagram.com/ник або телефон" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-sm text-slate-100 focus:outline-none focus:border-orange-500">
+            <input type="text" id="newGuestContact" required placeholder="https://instagram.com/... або телефон" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-sm text-slate-100 focus:outline-none focus:border-orange-500">
+          </div>
+          <div class="flex items-center gap-2 pt-1">
+            <input type="checkbox" id="newGuestPaid" class="w-4 h-4 rounded bg-slate-800 border-slate-700 text-orange-500 focus:ring-0">
+            <label for="newGuestPaid" class="text-xs text-slate-300 font-semibold">Одразу сплачено (100 PLN)</label>
           </div>
           <div class="flex justify-end gap-2 pt-2">
             <button type="button" onclick="closeAddGuestModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold">Скасувати</button>
-            <button type="submit" class="px-4 py-2 bg-orange-500 hover:bg-orange-400 text-white rounded-xl text-xs font-semibold">Зберегти</button>
+            <button type="submit" class="px-4 py-2 bg-orange-500 hover:bg-orange-400 text-white rounded-xl text-xs font-semibold">Зареєструвати</button>
           </div>
         </form>
       </div>
@@ -139,7 +166,9 @@
   </div>
 
   <script>
-    // Initial Master Dataset from Excel
+    // ВАШЕ GOOGLE APPS SCRIPT ПОСИЛАННЯ ВШИТЕ АВТОМАТИЧНО:
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwA8HXI-RP3aW4UCst8Lsupime_GWuCnSRw3p-YFfQTyc5BN46R5kpnjXl6z1Ofv6pOJg/exec";
+
     const INITIAL_GUESTS = [
       { id: 1, name: "Ігор Стоматолог", category: "Main", gender: "M", role: "Гость", status: "Да", isPaid: true, isVip: false, companions: [], contact: "https://www.instagram.com/stomatolog.igor?rpxt=NnBtbHZnOXltdmhv", checkedIn: false },
       { id: 2, name: "Іван Стоматолог", category: "Main", gender: "M", role: "Гость", status: "Да", isPaid: true, isVip: false, companions: [], contact: "https://www.instagram.com/dr.szczecin?psln=ZzM0MGZnY2x5YWRo", checkedIn: false },
@@ -161,7 +190,7 @@
       { id: 18, name: "Олександр Темщик", category: "Main", gender: "M", role: "Гость", status: "Да", isPaid: false, isVip: false, companions: [{ name: "Женщина (Пара)", gender: "F" }], contact: "https://www.instagram.com/_alllex_01?xtok=aDdlMXFxYmd3MDc0", checkedIn: false },
       { id: 19, name: "Юлія Халас", category: "Main", gender: "F", role: "Гость", status: "Да", isPaid: false, isVip: false, companions: [{ name: "Мужчина (Пара)", gender: "M" }], contact: "https://www.instagram.com/yuliiahalas?exln=MXZ6MW5nZGw4NzVraw==", checkedIn: false },
       { id: 20, name: "Ярик Барьбер", category: "Main", gender: "M", role: "Гость", status: "Да", isPaid: false, isVip: false, companions: [{ name: "Женщина (Пара)", gender: "F" }], contact: "https://www.instagram.com/jaro.barber.life?xtok=aWt3bHQzcnU1Z2I4", checkedIn: false },
-      { id: 21, name: "Аліна Сорбі", category: "Main", gender: "F", role: "Гость", status: "Да", isPaid: false, isVip: false, companions: [], contact: "https://www.instagram.com/alina_gracepro?psln=MWc2bzlzbGVpampseQ==", checkedIn: false },
+      { id: 21, name: "Аліна Сорби", category: "Main", gender: "F", role: "Гость", status: "Да", isPaid: false, isVip: false, companions: [], contact: "https://www.instagram.com/alina_gracepro?psln=MWc2bzlzbGVpampseQ==", checkedIn: false },
       { id: 22, name: "Фабіан Кубіцкі", category: "Main", gender: "M", role: "Гость", status: "Да", isPaid: false, isVip: false, companions: [], contact: "https://www.instagram.com/laserownia.depilacja?psln=cHprem1kOWhtM2s4", checkedIn: false },
       { id: 23, name: "Ярослав Листопад", category: "Main", gender: "M", role: "Гость", status: "Да", isPaid: false, isVip: false, companions: [{ name: "Женщина (Пара)", gender: "F" }], contact: "https://www.instagram.com/listopadach?vrfl=MTR3bjFjbnh6a3JwYQ==", checkedIn: false },
       { id: 24, name: "Микита Сальников", category: "Main", gender: "M", role: "Гость", status: "Да", isPaid: true, isVip: false, companions: [], contact: "https://www.instagram.com/viest_0v0?srtk=eG9xbGtiMTJwZ2Fw", checkedIn: false },
@@ -186,12 +215,83 @@
       { id: 43, name: "Фрей Барбер", category: "VIP", gender: "M", role: "Орг. гость", status: "Да", isPaid: false, isVip: true, companions: [], contact: "Вхід за спец-списком", checkedIn: false }
     ];
 
-    let guests = JSON.parse(localStorage.getItem('halloween_guests_ua')) || INITIAL_GUESTS;
+    let guests = [];
     let currentCategory = 'all';
 
-    function saveData() {
-      localStorage.setItem('halloween_guests_ua', JSON.stringify(guests));
+    // Авторизація
+    if (localStorage.getItem('halloween_auth') === 'true') {
+      document.getElementById('authModal').classList.add('hidden');
+      document.getElementById('app').classList.remove('hidden');
+      initApp();
+    }
+
+    function handleAuth(e) {
+      e.preventDefault();
+      const pin = document.getElementById('pinInput').value;
+      if (pin === '2026') {
+        localStorage.setItem('halloween_auth', 'true');
+        document.getElementById('authModal').classList.add('hidden');
+        document.getElementById('app').classList.remove('hidden');
+        initApp();
+      } else {
+        alert('Невірний PIN-код!');
+      }
+    }
+
+    // Завантаження даних із хмари Google Sheets
+    async function initApp() {
+      if (!SCRIPT_URL || SCRIPT_URL.includes("ТУТ_ВАШЕ")) {
+        guests = INITIAL_GUESTS;
+        renderApp();
+        return;
+      }
+
+      try {
+        const res = await fetch(SCRIPT_URL);
+        const data = await res.json();
+        if (data && data.length > 0) {
+          guests = data.map(g => ({
+            ...g,
+            isPaid: g.isPaid === true || g.isPaid === "true" || g.isPaid === "TRUE",
+            isVip: g.isVip === true || g.isVip === "true" || g.isVip === "TRUE",
+            checkedIn: g.checkedIn === true || g.checkedIn === "true" || g.checkedIn === "TRUE",
+            companions: typeof g.companions === 'string' ? JSON.parse(g.companions || '[]') : (g.companions || [])
+          }));
+        } else {
+          guests = INITIAL_GUESTS;
+          saveData(); // Заповнюємо таблицю вперше
+        }
+      } catch (err) {
+        console.error("Помилка завантаження з хмари:", err);
+        guests = INITIAL_GUESTS;
+      }
       renderApp();
+    }
+
+    async function loadFromCloud() {
+      document.getElementById('syncStatus').innerText = "⏳ Синхронізація...";
+      await initApp();
+      document.getElementById('syncStatus').innerText = "☁️ Онлайн хмара";
+    }
+
+    // Збереження даних у хмару Google Sheets
+    async function saveData() {
+      renderApp();
+      if (!SCRIPT_URL || SCRIPT_URL.includes("ТУТ_ВАШЕ")) return;
+
+      try {
+        document.getElementById('syncStatus').innerText = "💾 Збереження...";
+        await fetch(SCRIPT_URL, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(guests)
+        });
+        document.getElementById('syncStatus').innerText = "☁️ Онлайн хмара";
+      } catch (err) {
+        console.error("Помилка збереження:", err);
+        document.getElementById('syncStatus').innerText = "⚠️ Помилка зв'язку";
+      }
     }
 
     function setCategoryFilter(cat) {
@@ -208,25 +308,200 @@
     }
 
     function calculateStats() {
-      let totalPax = 0;
-      let payingPax = 0;
-      let vipPax = 0;
-      let collectedPLN = 0;
-      let checkedInCount = 0;
-
+      let totalPax = 0, payingPax = 0, vipPax = 0, collectedPLN = 0, checkedInCount = 0;
       guests.forEach(g => {
-        const count = 1 + g.companions.length;
+        const count = 1 + (g.companions ? g.companions.length : 0);
         totalPax += count;
-        if (g.isVip) {
-          vipPax += count;
-        } else {
+        if (g.isVip) { vipPax += count; } 
+        else {
           payingPax += count;
           if (g.isPaid) collectedPLN += count * 100;
         }
         if (g.checkedIn) checkedInCount += count;
       });
 
-      const targetPLN = payingPax * 100;
-
       document.getElementById('statsContainer').innerHTML = `
-        <div class="bg-slate
+        <div class="bg-slate-800/60 p-4 rounded-2xl border border-slate-700/50">
+          <p class="text-xs text-slate-400 font-medium">Загальний потік</p>
+          <p class="text-2xl font-black text-white mt-1">${totalPax} <span class="text-xs font-normal text-slate-400">осіб</span></p>
+          <p class="text-[10px] text-slate-500 mt-1">${payingPax} платні • ${vipPax} VIP</p>
+        </div>
+        <div class="bg-slate-800/60 p-4 rounded-2xl border border-slate-700/50">
+          <p class="text-xs text-slate-400 font-medium">Зібрано каси</p>
+          <p class="text-2xl font-black text-emerald-400 mt-1">${collectedPLN} <span class="text-xs font-normal text-slate-400">PLN</span></p>
+          <p class="text-[10px] text-slate-500 mt-1">Ціль: ${payingPax * 100} PLN</p>
+        </div>
+        <div class="bg-slate-800/60 p-4 rounded-2xl border border-slate-700/50">
+          <p class="text-xs text-slate-400 font-medium">Прийшли (Чек-ін)</p>
+          <p class="text-2xl font-black text-orange-400 mt-1">${checkedInCount} <span class="text-xs font-normal text-slate-400">осіб</span></p>
+          <p class="text-[10px] text-slate-500 mt-1">${Math.round((checkedInCount/totalPax)*100 || 0)}% від списку</p>
+        </div>
+        <div class="bg-slate-800/60 p-4 rounded-2xl border border-slate-700/50">
+          <p class="text-xs text-slate-400 font-medium">Статуси оплати</p>
+          <p class="text-2xl font-black text-indigo-400 mt-1">${guests.filter(g=>g.isPaid).length}/${guests.length}</p>
+          <p class="text-[10px] text-slate-500 mt-1">Оплачених броней</p>
+        </div>
+      `;
+    }
+
+    function renderApp() {
+      calculateStats();
+      const query = (document.getElementById('searchInput').value || '').toLowerCase();
+      const cardsContainer = document.getElementById('cardsView');
+      cardsContainer.innerHTML = '';
+
+      const filtered = guests.filter(g => {
+        const matchesCat = currentCategory === 'all' || g.category === currentCategory;
+        const matchesSearch = g.name.toLowerCase().includes(query) || (g.contact && g.contact.toLowerCase().includes(query));
+        return matchesCat && matchesSearch;
+      });
+
+      filtered.forEach(g => {
+        const isInstagram = g.contact && g.contact.includes('instagram.com');
+        const compCount = g.companions ? g.companions.length : 0;
+        const card = document.createElement('div');
+        card.className = `bg-slate-800/80 rounded-2xl p-5 border ${g.checkedIn ? 'border-orange-500/50 bg-orange-950/10' : 'border-slate-700/60'} transition hover:border-slate-600 flex flex-col justify-between`;
+
+        card.innerHTML = `
+          <div>
+            <div class="flex justify-between items-start gap-2 mb-3">
+              <div>
+                <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${g.category==='VIP'?'bg-purple-500/20 text-purple-400 border border-purple-500/30':(g.category==='Staff'?'bg-blue-500/20 text-blue-400 border border-blue-500/30':'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30')}">${g.category}</span>
+                <h3 class="text-base font-bold text-white mt-1.5">${g.name}</h3>
+              </div>
+              <button onclick="deleteGuest('${g.id}')" class="text-slate-500 hover:text-red-400 p-1 transition"><i class="fa-solid fa-trash-can text-sm"></i></button>
+            </div>
+
+            <div class="space-y-2 mb-4 text-xs">
+              <div class="flex items-center gap-2 text-slate-300">
+                <i class="fa-solid fa-user-group text-slate-500 w-4"></i>
+                <span>Супровід: <strong class="text-white">${compCount} осіб</strong></span>
+                <button onclick="addCompanion('${g.id}')" class="ml-auto text-[10px] bg-slate-700 hover:bg-slate-600 text-slate-200 px-2 py-0.5 rounded-lg">+ Додати</button>
+              </div>
+              ${g.contact ? `
+                <div class="flex items-center gap-2 text-slate-300">
+                  <i class="${isInstagram ? 'fa-brands fa-instagram text-pink-400' : 'fa-solid fa-phone text-emerald-400'} w-4"></i>
+                  ${isInstagram ? `<a href="${g.contact}" target="_blank" class="text-pink-400 hover:underline truncate">Instagram профіль</a>` : `<span class="truncate">${g.contact}</span>`}
+                </div>
+              ` : ''}
+            </div>
+          </div>
+
+          <div class="pt-3 border-t border-slate-700/50 flex items-center justify-between gap-2">
+            <button onclick="togglePaid('${g.id}')" class="px-3 py-1.5 rounded-xl text-xs font-semibold border transition ${g.isPaid ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40' : 'bg-red-500/20 text-red-400 border-red-500/40'}">
+              ${g.isPaid ? 'Оплачено' : 'Не оплачено'}
+            </button>
+            <button onclick="toggleCheckIn('${g.id}')" class="px-3 py-1.5 rounded-xl text-xs font-semibold transition ${g.checkedIn ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30' : 'bg-slate-700 hover:bg-slate-600 text-slate-200'}">
+              ${g.checkedIn ? '✓ На вечірці' : 'Чек-ін'}
+            </button>
+          </div>
+        `;
+        cardsContainer.appendChild(card);
+      });
+    }
+
+    function togglePaid(id) {
+      const g = guests.find(x => x.id == id);
+      if (g) { g.isPaid = !g.isPaid; saveData(); }
+    }
+
+    function toggleCheckIn(id) {
+      const g = guests.find(x => x.id == id);
+      if (g) { g.checkedIn = !g.checkedIn; saveData(); }
+    }
+
+    function addCompanion(id) {
+      const g = guests.find(x => x.id == id);
+      if (g) {
+        if (!g.companions) g.companions = [];
+        g.companions.push({ name: `Супроводжуючий ${g.companions.length + 1}`, gender: 'F' });
+        saveData();
+      }
+    }
+
+    function deleteGuest(id) {
+      if (confirm('Ви впевнені, що хочете видалити цього гостя?')) {
+        guests = guests.filter(x => x.id != id);
+        saveData();
+      }
+    }
+
+    function openAddGuestModal() { document.getElementById('addGuestModal').classList.remove('hidden'); }
+    function closeAddGuestModal() { document.getElementById('addGuestModal').classList.add('hidden'); }
+
+    function handleAddGuest(e) {
+      e.preventDefault();
+      const name = document.getElementById('newGuestName').value;
+      const category = document.getElementById('newGuestCategory').value;
+      const gender = document.getElementById('newGuestGender').value;
+      const contact = document.getElementById('newGuestContact').value;
+      const isPaid = document.getElementById('newGuestPaid').checked;
+
+      guests.push({
+        id: Date.now(),
+        name, category, gender,
+        role: category === 'VIP' ? 'Орг. гость' : (category === 'Staff' ? 'Співробітник' : 'Гость'),
+        status: 'Да', isPaid, isVip: category === 'VIP',
+        companions: [], contact, checkedIn: false
+      });
+
+      closeAddGuestModal();
+      document.getElementById('newGuestName').value = '';
+      document.getElementById('newGuestContact').value = '';
+      document.getElementById('newGuestPaid').checked = false;
+      saveData();
+    }
+
+    function toggleExpandedRoster() {
+      const modal = document.getElementById('rosterModal');
+      modal.classList.toggle('hidden');
+      if (!modal.classList.contains('hidden')) renderRosterTable();
+    }
+
+    function renderRosterTable() {
+      const query = (document.getElementById('rosterSearchInput').value || '').toLowerCase();
+      const tbody = document.getElementById('rosterTableBody');
+      tbody.innerHTML = '';
+
+      guests.filter(g => g.name.toLowerCase().includes(query)).forEach((g, idx) => {
+        const compCount = g.companions ? g.companions.length : 0;
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-800/40 transition border-b border-slate-800/40";
+        tr.innerHTML = `
+          <td class="p-3 font-mono text-slate-500">${idx + 1}</td>
+          <td class="p-3 font-semibold text-white">${g.name}</td>
+          <td class="p-3"><span class="text-[10px] px-2 py-0.5 rounded bg-slate-800 border border-slate-700">${g.category}</span></td>
+          <td class="p-3">${g.gender === 'M' ? 'Чол' : 'Жін'}</td>
+          <td class="p-3 text-slate-400">+${compCount} осіб</td>
+          <td class="p-3 text-slate-400 truncate max-w-[150px]">${g.contact || '—'}</td>
+          <td class="p-3"><span class="${g.isPaid ? 'text-emerald-400' : 'text-red-400'} font-semibold">${g.isPaid ? 'Оплачено' : 'Ні'}</span></td>
+          <td class="p-3"><span class="${g.checkedIn ? 'text-orange-400' : 'text-slate-500'} font-semibold">${g.checkedIn ? 'Прийшов' : 'Очікуємо'}</span></td>
+          <td class="p-3 text-right">
+            <button onclick="deleteGuest('${g.id}')" class="text-red-400 hover:underline">Видалити</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function exportToExcel() {
+      const dataToExport = guests.map((g, idx) => ({
+        "№": idx + 1,
+        "Ім'я та Прізвище": g.name,
+        "Категорія": g.category,
+        "Стать": g.gender,
+        "Роль": g.role,
+        "Оплата": g.isPaid ? "Оплачено" : "Не оплачено",
+        "Супровід (к-ть)": g.companions ? g.companions.length : 0,
+        "Контакт / Instagram": g.contact,
+        "Чек-ін": g.checkedIn ? "Так" : "Ні"
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Гості Хеллоуїна");
+      XLSX.writeFile(workbook, "Halloween_CRM_Cloud.xlsx");
+    }
+  </script>
+</body>
+</html>
