@@ -148,7 +148,7 @@ function calculateStats() {
     } else {
       payingPax += groupSize;
       if (g.isPaid) {
-        collectedPLN += groupSize * 100; // Враховуємо і гостя, і весь його супровід (100 PLN з кожного)
+        collectedPLN += groupSize * 100;
       }
     }
     if (g.checkedIn) checkedInCount += groupSize;
