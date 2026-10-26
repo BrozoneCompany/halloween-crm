@@ -41,14 +41,17 @@
         </div>
         <div>
           <h1 class="text-2xl font-black tracking-tight text-white flex items-center gap-2">
-            HALLOWEEN CRM <span id="syncStatus" class="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-semibold">☁️ Онлайн хмара</span>
+            HALLOWEEN CRM <span id="syncStatus" class="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-semibold">☁️ Готово до роботи</span>
           </h1>
-          <p class="text-xs text-slate-400">Синхронізація з Google Таблицею в реальному часі</p>
+          <p class="text-xs text-slate-400">Керування гостями та хмарна синхронізація</p>
         </div>
       </div>
       <div class="flex flex-wrap items-center gap-2">
-        <button onclick="loadFromCloud()" class="px-3.5 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-xl font-semibold text-xs transition flex items-center gap-2 shadow">
+        <button onclick="loadFromCloud()" class="px-3.5 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-xl font-semibold text-xs transition flex items-center gap-2 shadow" title="Завантажити свіжі дані з хмари">
           <i class="fa-solid fa-rotate"></i> Оновити дані
+        </button>
+        <button onclick="saveToCloud()" class="px-3.5 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-xl font-semibold text-xs transition flex items-center gap-2 shadow" title="Надіслати зміни в Google Таблицю">
+          <i class="fa-solid fa-cloud-arrow-up"></i> Зберегти в хмару
         </button>
         <button onclick="exportToExcel()" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-semibold text-xs transition flex items-center gap-2 shadow">
           <i class="fa-solid fa-file-excel"></i> Експорт Excel
@@ -244,6 +247,7 @@
       }
 
       try {
+        document.getElementById('syncStatus').innerText = "⏳ Завантаження...";
         const res = await fetch(SCRIPT_URL);
         const data = await res.json();
         if (data && data.length > 0) {
@@ -255,23 +259,23 @@
           }));
         } else {
           guests = INITIAL_GUESTS;
-          saveData();
         }
+        document.getElementById('syncStatus').innerText = "☁️ Синхронізовано";
       } catch (err) {
         console.error("Помилка завантаження:", err);
         guests = INITIAL_GUESTS;
+        document.getElementById('syncStatus').innerText = "⚠️ Помилка мережі";
       }
       renderApp();
     }
 
     async function loadFromCloud() {
-      document.getElementById('syncStatus').innerText = "⏳ Синхронізація...";
       await initApp();
-      document.getElementById('syncStatus').innerText = "☁️ Онлайн хмара";
+      alert('Дані успішно оновлено з хмари!');
     }
 
-    async function saveData() {
-      renderApp();
+    // РУЧНЕ ЗБЕРЕЖЕННЯ В ХМАРУ ЗА КНОПКОЮ
+    async function saveToCloud() {
       if (!SCRIPT_URL || SCRIPT_URL.includes("ТУТ_ВАШЕ")) return;
 
       try {
@@ -282,10 +286,12 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(guests)
         });
-        document.getElementById('syncStatus').innerText = "☁️ Онлайн хмара";
+        document.getElementById('syncStatus').innerText = "☁️ Збережено в хмару";
+        alert('✅ Зміни успішно затверджено та відправлено в Google Таблицю!');
       } catch (err) {
         console.error("Помилка збереження:", err);
-        document.getElementById('syncStatus').innerText = "⚠️ Помилка зв'язку";
+        document.getElementById('syncStatus').innerText = "⚠️ Помилка збереження";
+        alert('❌ Помилка звʼязку з хмарою. Перевірте інтернет.');
       }
     }
 
@@ -375,8 +381,8 @@
                 <h3 class="text-base font-bold text-white mt-1.5">${g.name}</h3>
               </div>
               <div class="flex items-center gap-1">
-                <button onclick="openEditGuestModal('${g.id}')" class="text-slate-400 hover:text-orange-400 p-1.5 transition"><i class="fa-solid fa-pen text-xs"></i></button>
-                <button onclick="deleteGuest('${g.id}')" class="text-slate-500 hover:text-red-400 p-1.5 transition"><i class="fa-solid fa-trash-can text-xs"></i></button>
+                <button onclick="openEditGuestModal('${g.id}')" class="text-slate-400 hover:text-orange-400 p-1.5 transition" title="Редагувати"><i class="fa-solid fa-pen text-xs"></i></button>
+                <button onclick="deleteGuest('${g.id}')" class="text-slate-500 hover:text-red-400 p-1.5 transition" title="Видалити"><i class="fa-solid fa-trash-can text-xs"></i></button>
               </div>
             </div>
 
@@ -417,12 +423,12 @@
 
     function togglePaid(id) {
       const g = guests.find(x => x.id == id);
-      if (g) { g.isPaid = !g.isPaid; saveData(); }
+      if (g) { g.isPaid = !g.isPaid; renderApp(); }
     }
 
     function toggleCheckIn(id) {
       const g = guests.find(x => x.id == id);
-      if (g) { g.checkedIn = !g.checkedIn; saveData(); }
+      if (g) { g.checkedIn = !g.checkedIn; renderApp(); }
     }
 
     function addCompanion(id) {
@@ -430,7 +436,7 @@
       if (g) {
         if (!g.companions) g.companions = [];
         g.companions.push({ name: `Супроводжуючий ${g.companions.length + 1}`, gender: 'F' });
-        saveData();
+        renderApp();
       }
     }
 
@@ -438,14 +444,14 @@
       const g = guests.find(x => x.id == id);
       if (g && g.companions && g.companions.length > 0) {
         g.companions.pop();
-        saveData();
+        renderApp();
       }
     }
 
     function deleteGuest(id) {
       if (confirm('Ви впевнені, що хочете видалити цього гостя?')) {
         guests = guests.filter(x => x.id != id);
-        saveData();
+        renderApp();
       }
     }
 
@@ -505,7 +511,7 @@
       }
 
       closeAddGuestModal();
-      saveData();
+      renderApp();
     }
 
     function toggleExpandedRoster() {
