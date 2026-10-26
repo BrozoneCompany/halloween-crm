@@ -165,7 +165,7 @@
   </div>
 
   <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwA8HXI-RP3aW4UCst8Lsupime_GWuCnSRw3p-YFfQTyc5BN46R5kpnjXl6z1Ofv6pOJg/exec";
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxl8boCf7yXpC66HsaMfmMcYOmdVStJs6oYvnbae1RjvnrdNT5TtnryGpezAkK4EcTK2A/exec";
 
     const INITIAL_GUESTS = [
       { id: 1, name: "Ігор Стоматолог", category: "Main", gender: "M", role: "Гость", status: "Да", isPaid: true, companions: [], contact: "https://www.instagram.com/stomatolog.igor", checkedIn: false },
@@ -236,7 +236,7 @@
     }
 
     async function initApp() {
-      if (!SCRIPT_URL || SCRIPT_URL.includes("ТУТ_ВАШЕ")) {
+      if (!SCRIPT_URL) {
         guests = INITIAL_GUESTS;
         renderApp();
         return;
@@ -270,9 +270,8 @@
       alert('Дані оновлено з хмари!');
     }
 
-    // Мобільно-сумісне збереження в хмару
     async function saveToCloud() {
-      if (!SCRIPT_URL || SCRIPT_URL.includes("ТУТ_ВАШЕ")) return;
+      if (!SCRIPT_URL) return;
 
       try {
         document.getElementById('syncStatus').innerText = "💾 Збереження...";
