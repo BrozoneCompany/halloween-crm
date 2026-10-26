@@ -2,30 +2,31 @@
 <html lang="uk">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Halloween CRM & Google Sheets Sync</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
-    body { font-family: 'Inter', sans-serif; }
+    body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+    button, input, select { touch-action: manipulation; }
   </style>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen pb-12">
 
   <!-- AUTH MODAL -->
   <div id="authModal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-8 shadow-2xl text-center">
-      <div class="w-16 h-16 bg-orange-500/20 border border-orange-500/30 rounded-2xl mx-auto flex items-center justify-center text-orange-400 text-3xl mb-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-sm p-6 shadow-2xl text-center">
+      <div class="w-14 h-14 bg-orange-500/20 border border-orange-500/30 rounded-2xl mx-auto flex items-center justify-center text-orange-400 text-2xl mb-4">
         🔒
       </div>
       <h2 class="text-xl font-bold text-white mb-2">Доступ для персоналу</h2>
       <p class="text-xs text-slate-400 mb-6">Введіть PIN-код для доступу до хмарної CRM (код: <span class="text-orange-400 font-mono font-bold">2026</span>)</p>
       
       <form onsubmit="handleAuth(event)" class="space-y-4">
-        <input type="password" id="pinInput" required placeholder="PIN-код" class="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-center text-lg tracking-widest text-slate-100 focus:outline-none focus:border-orange-500">
-        <button type="submit" class="w-full py-3 bg-orange-500 hover:bg-orange-400 text-white rounded-xl font-semibold text-sm transition shadow-lg shadow-orange-500/20">
+        <input type="password" id="pinInput" inputmode="numeric" pattern="[0-9]*" required placeholder="PIN-код" class="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-center text-xl tracking-widest text-slate-100 focus:outline-none focus:border-orange-500">
+        <button type="submit" class="w-full py-3 bg-orange-500 hover:bg-orange-400 text-white rounded-xl font-semibold text-sm transition shadow-lg shadow-orange-500/20 active:scale-95">
           Увійти в систему
         </button>
       </form>
@@ -33,87 +34,82 @@
   </div>
 
   <!-- MAIN APP -->
-  <div id="app" class="max-w-7xl mx-auto px-4 py-6 hidden">
-    <header class="flex flex-col md:flex-row justify-between items-center gap-4 mb-8 bg-slate-800/80 p-6 rounded-2xl border border-slate-700/50 shadow-xl backdrop-blur-sm">
-      <div class="flex items-center gap-3">
-        <div class="w-12 h-12 rounded-xl bg-orange-500/20 border border-orange-500/30 flex items-center justify-center text-orange-400 text-2xl shadow-inner">
-          🎃
-        </div>
-        <div>
-          <h1 class="text-2xl font-black tracking-tight text-white flex items-center gap-2">
-            HALLOWEEN CRM <span id="syncStatus" class="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-semibold">☁️ Готово до роботи</span>
-          </h1>
-          <p class="text-xs text-slate-400">Керування гостями та хмарна синхронізація</p>
+  <div id="app" class="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6 hidden">
+    <header class="flex flex-col md:flex-row justify-between items-center gap-4 mb-6 bg-slate-800/80 p-4 sm:p-6 rounded-2xl border border-slate-700/50 shadow-xl backdrop-blur-sm">
+      <div class="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-orange-500/20 border border-orange-500/30 flex items-center justify-center text-orange-400 text-xl sm:text-2xl shadow-inner">
+            🎃
+          </div>
+          <div>
+            <h1 class="text-lg sm:text-2xl font-black tracking-tight text-white flex items-center gap-2">
+              HALLOWEEN CRM
+            </h1>
+            <p id="syncStatus" class="text-[11px] text-emerald-400 font-semibold">☁️ Готово до роботи</p>
+          </div>
         </div>
       </div>
-      <div class="flex flex-wrap items-center gap-2">
-        <button onclick="loadFromCloud()" class="px-3.5 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-xl font-semibold text-xs transition flex items-center gap-2 shadow" title="Завантажити свіжі дані з хмари">
-          <i class="fa-solid fa-rotate"></i> Оновити дані
+      <div class="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 w-full md:w-auto">
+        <button onclick="loadFromCloud()" class="px-3 py-2.5 bg-slate-700 hover:bg-slate-600 active:bg-slate-500 text-slate-200 rounded-xl font-semibold text-xs transition flex items-center justify-center gap-2 shadow">
+          <i class="fa-solid fa-rotate"></i> Оновити
         </button>
-        <button onclick="saveToCloud()" class="px-3.5 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-xl font-semibold text-xs transition flex items-center gap-2 shadow" title="Надіслати зміни в Google Таблицю">
-          <i class="fa-solid fa-cloud-arrow-up"></i> Зберегти в хмару
+        <button onclick="saveToCloud()" class="px-3 py-2.5 bg-amber-600 hover:bg-amber-500 active:bg-amber-400 text-white rounded-xl font-semibold text-xs transition flex items-center justify-center gap-2 shadow">
+          <i class="fa-solid fa-cloud-arrow-up"></i> Зберегти
         </button>
-        <button onclick="exportToExcel()" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-semibold text-xs transition flex items-center gap-2 shadow">
-          <i class="fa-solid fa-file-excel"></i> Експорт Excel
-        </button>
-        <button onclick="toggleExpandedRoster()" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-semibold text-xs transition flex items-center gap-2 shadow">
+        <button onclick="toggleExpandedRoster()" class="px-3 py-2.5 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-400 text-white rounded-xl font-semibold text-xs transition flex items-center justify-center gap-2 shadow">
           <i class="fa-solid fa-list-check"></i> Таблиця
         </button>
-        <button onclick="openAddGuestModal()" class="px-3.5 py-2 bg-orange-500 hover:bg-orange-400 text-white rounded-xl font-semibold text-xs transition flex items-center gap-2 shadow">
-          <i class="fa-solid fa-user-plus"></i> Додати гостя
+        <button onclick="openAddGuestModal()" class="px-3 py-2.5 bg-orange-500 hover:bg-orange-400 active:bg-orange-300 text-white rounded-xl font-semibold text-xs transition flex items-center justify-center gap-2 shadow">
+          <i class="fa-solid fa-user-plus"></i> + Гость
         </button>
       </div>
     </header>
 
-    <div id="statsContainer" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"></div>
+    <div id="statsContainer" class="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-6"></div>
 
-    <div class="bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50 mb-6 flex flex-col md:flex-row justify-between gap-4">
+    <div class="bg-slate-800/50 p-3 sm:p-4 rounded-2xl border border-slate-700/50 mb-6 flex flex-col md:flex-row justify-between gap-3">
       <div class="relative flex-1">
         <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
-        <input type="text" id="searchInput" oninput="renderApp()" placeholder="Пошук за ім'ям, Instagram або контактом..." class="w-full pl-11 pr-4 py-2.5 bg-slate-900/80 border border-slate-700 rounded-xl text-sm focus:outline-none focus:border-orange-500 text-slate-200 placeholder-slate-500 transition">
+        <input type="text" id="searchInput" oninput="renderApp()" placeholder="Пошук гостя..." class="w-full pl-11 pr-4 py-2.5 bg-slate-900/80 border border-slate-700 rounded-xl text-sm focus:outline-none focus:border-orange-500 text-slate-200 placeholder-slate-500 transition">
       </div>
-      <div class="flex flex-wrap gap-2">
-        <button onclick="setCategoryFilter('all')" id="btnFilterAll" class="px-3.5 py-2 text-xs font-semibold rounded-xl border transition">Усі</button>
-        <button onclick="setCategoryFilter('Main')" id="btnFilterMain" class="px-3.5 py-2 text-xs font-semibold rounded-xl border transition">🎉 Основні</button>
-        <button onclick="setCategoryFilter('Staff')" id="btnFilterStaff" class="px-3.5 py-2 text-xs font-semibold rounded-xl border transition">💼 Персонал</button>
-        <button onclick="setCategoryFilter('Temp')" id="btnFilterTemp" class="px-3.5 py-2 text-xs font-semibold rounded-xl border transition">⏳ Тимчасові гості</button>
+      <div class="grid grid-cols-2 sm:flex sm:flex-wrap gap-1.5">
+        <button onclick="setCategoryFilter('all')" id="btnFilterAll" class="px-3 py-2 text-xs font-semibold rounded-xl border transition">Усі</button>
+        <button onclick="setCategoryFilter('Main')" id="btnFilterMain" class="px-3 py-2 text-xs font-semibold rounded-xl border transition">🎉 Основні</button>
+        <button onclick="setCategoryFilter('Staff')" id="btnFilterStaff" class="px-3 py-2 text-xs font-semibold rounded-xl border transition">💼 Персонал</button>
+        <button onclick="setCategoryFilter('Temp')" id="btnFilterTemp" class="px-3 py-2 text-xs font-semibold rounded-xl border transition">⏳ Тимчасові</button>
       </div>
     </div>
 
-    <div id="cardsView" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+    <div id="cardsView" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4"></div>
 
     <!-- Roster Modal -->
-    <div id="rosterModal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-6xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
-        <div class="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
+    <div id="rosterModal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-2 sm:p-4">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-6xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
+        <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
           <div>
-            <h2 class="text-xl font-bold text-white flex items-center gap-2">
-              <i class="fa-solid fa-users text-orange-500"></i> Розгорнута таблиця всіх гостей
+            <h2 class="text-base sm:text-xl font-bold text-white flex items-center gap-2">
+              <i class="fa-solid fa-users text-orange-500"></i> Таблиця всіх гостей
             </h2>
-            <p class="text-xs text-slate-400">Змінюйте статуси оплати, чек-ін та супровід прямо в таблиці</p>
+            <p class="text-[11px] text-slate-400">Інтерактивне редагування та статуси</p>
           </div>
           <button onclick="toggleExpandedRoster()" class="w-8 h-8 rounded-lg bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center transition">
             <i class="fa-solid fa-xmark text-lg"></i>
           </button>
         </div>
-        <div class="p-4 bg-slate-950/40 border-b border-slate-800/80 flex flex-wrap gap-3 items-center justify-between">
-          <input type="text" id="rosterSearchInput" oninput="renderRosterTable()" placeholder="Швидкий пошук у таблиці..." class="px-4 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs w-64 text-slate-200">
-          <button onclick="window.print()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-semibold transition flex items-center gap-2">
-            <i class="fa-solid fa-print"></i> Друкувати / PDF
-          </button>
+        <div class="p-3 bg-slate-950/40 border-b border-slate-800/80 flex flex-wrap gap-2 items-center justify-between">
+          <input type="text" id="rosterSearchInput" oninput="renderRosterTable()" placeholder="Пошук у таблиці..." class="px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-xl text-xs w-full sm:w-64 text-slate-200">
         </div>
-        <div class="flex-1 overflow-auto p-6">
+        <div class="flex-1 overflow-auto p-2 sm:p-4">
           <table class="w-full text-left border-collapse text-xs">
             <thead>
               <tr class="border-b border-slate-800 text-slate-400 font-semibold uppercase tracking-wider">
-                <th class="p-3">№</th>
-                <th class="p-3">Гость / ФІО</th>
-                <th class="p-3">Категорія</th>
-                <th class="p-3">Супровід (+1)</th>
-                <th class="p-3">Контакт</th>
-                <th class="p-3">Оплата</th>
-                <th class="p-3">Чек-ін</th>
-                <th class="p-3 text-right">Дії</th>
+                <th class="p-2">№</th>
+                <th class="p-2">Гость / ФІО</th>
+                <th class="p-2">Кат.</th>
+                <th class="p-2">+1</th>
+                <th class="p-2">Оплата</th>
+                <th class="p-2">Чек-ін</th>
+                <th class="p-2 text-right">Дії</th>
               </tr>
             </thead>
             <tbody id="rosterTableBody" class="divide-y divide-slate-800/50 text-slate-300"></tbody>
@@ -123,45 +119,45 @@
     </div>
 
     <!-- Add / Edit Guest Modal -->
-    <div id="addGuestModal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-6 shadow-2xl">
-        <h3 id="modalTitle" class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+    <div id="addGuestModal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-3 overflow-y-auto">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-5 shadow-2xl my-auto">
+        <h3 id="modalTitle" class="text-base font-bold text-white mb-4 flex items-center gap-2">
           <i class="fa-solid fa-user-plus text-orange-500"></i> Зареєструвати нового гостя
         </h3>
-        <form onsubmit="handleSaveGuest(event)" class="space-y-4">
+        <form onsubmit="handleSaveGuest(event)" class="space-y-3">
           <input type="hidden" id="editGuestId">
           <div>
             <label class="block text-xs font-semibold text-slate-400 mb-1">Ім'я та Прізвище *</label>
             <input type="text" id="newGuestName" required class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-sm text-slate-100 focus:outline-none focus:border-orange-500">
           </div>
-          <div class="grid grid-cols-2 gap-3">
+          <div class="grid grid-cols-2 gap-2">
             <div>
               <label class="block text-xs font-semibold text-slate-400 mb-1">Категорія</label>
-              <select id="newGuestCategory" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-sm text-slate-100">
-                <option value="Main">Основний гость</option>
+              <select id="newGuestCategory" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs text-slate-100">
+                <option value="Main">Основний</option>
                 <option value="Staff">Персонал</option>
-                <option value="Temp">Тимчасові гості</option>
+                <option value="Temp">Тимчасовий</option>
               </select>
             </div>
             <div>
               <label class="block text-xs font-semibold text-slate-400 mb-1">Стать</label>
-              <select id="newGuestGender" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-sm text-slate-100">
+              <select id="newGuestGender" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs text-slate-100">
                 <option value="M">Чоловік</option>
                 <option value="F">Жінка</option>
               </select>
             </div>
           </div>
           <div>
-            <label class="block text-xs font-semibold text-slate-400 mb-1">Instagram або Телефон *</label>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Instagram / Телефон *</label>
             <input type="text" id="newGuestContact" required placeholder="https://instagram.com/... або телефон" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-sm text-slate-100 focus:outline-none focus:border-orange-500">
           </div>
           <div class="flex items-center gap-2 pt-1">
             <input type="checkbox" id="newGuestPaid" class="w-4 h-4 rounded bg-slate-800 border-slate-700 text-orange-500 focus:ring-0">
             <label for="newGuestPaid" class="text-xs text-slate-300 font-semibold">Оплачено</label>
           </div>
-          <div class="flex justify-end gap-2 pt-2">
-            <button type="button" onclick="closeAddGuestModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold">Скасувати</button>
-            <button type="submit" class="px-4 py-2 bg-orange-500 hover:bg-orange-400 text-white rounded-xl text-xs font-semibold">Зберегти</button>
+          <div class="flex justify-end gap-2 pt-3">
+            <button type="button" onclick="closeAddGuestModal()" class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold">Скасувати</button>
+            <button type="submit" class="px-4 py-2.5 bg-orange-500 hover:bg-orange-400 text-white rounded-xl text-xs font-semibold">Зберегти</button>
           </div>
         </form>
       </div>
@@ -248,7 +244,7 @@
 
       try {
         document.getElementById('syncStatus').innerText = "⏳ Завантаження...";
-        const res = await fetch(SCRIPT_URL);
+        const res = await fetch(SCRIPT_URL, { redirect: "follow" });
         const data = await res.json();
         if (data && data.length > 0) {
           guests = data.map(g => ({
@@ -260,21 +256,21 @@
         } else {
           guests = INITIAL_GUESTS;
         }
-        document.getElementById('syncStatus').innerText = "☁️ Синхронізовано";
+        document.getElementById('syncStatus').innerText = "☁️ Синхронізація ОК";
       } catch (err) {
         console.error("Помилка завантаження:", err);
         guests = INITIAL_GUESTS;
-        document.getElementById('syncStatus').innerText = "⚠️ Помилка мережі";
+        document.getElementById('syncStatus').innerText = "⚠️ Автономний режим";
       }
       renderApp();
     }
 
     async function loadFromCloud() {
       await initApp();
-      alert('Дані успішно оновлено з хмари!');
+      alert('Дані оновлено з хмари!');
     }
 
-    // РУЧНЕ ЗБЕРЕЖЕННЯ В ХМАРУ ЗА КНОПКОЮ
+    // Мобільно-сумісне збереження в хмару
     async function saveToCloud() {
       if (!SCRIPT_URL || SCRIPT_URL.includes("ТУТ_ВАШЕ")) return;
 
@@ -282,16 +278,16 @@
         document.getElementById('syncStatus').innerText = "💾 Збереження...";
         await fetch(SCRIPT_URL, {
           method: "POST",
-          mode: "no-cors",
-          headers: { "Content-Type": "application/json" },
+          redirect: "follow",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
           body: JSON.stringify(guests)
         });
-        document.getElementById('syncStatus').innerText = "☁️ Збережено в хмару";
-        alert('✅ Зміни успішно затверджено та відправлено в Google Таблицю!');
+        document.getElementById('syncStatus').innerText = "☁️ Збережено";
+        alert('✅ Зміни відправлено в Google Таблицю!');
       } catch (err) {
         console.error("Помилка збереження:", err);
-        document.getElementById('syncStatus').innerText = "⚠️ Помилка збереження";
-        alert('❌ Помилка звʼязку з хмарою. Перевірте інтернет.');
+        document.getElementById('syncStatus').innerText = "⚠️ Помилка з'єднання";
+        alert('❌ Помилка звʼязку з хмарою.');
       }
     }
 
@@ -301,9 +297,9 @@
         const btn = document.getElementById('btnFilter' + c);
         if (btn) {
           if (c.toLowerCase() === cat.toLowerCase()) {
-            btn.className = "px-3.5 py-2 text-xs font-semibold rounded-xl border border-orange-500 bg-orange-500/20 text-orange-400";
+            btn.className = "px-3 py-2 text-xs font-semibold rounded-xl border border-orange-500 bg-orange-500/20 text-orange-400";
           } else {
-            btn.className = "px-3.5 py-2 text-xs font-semibold rounded-xl border border-slate-700 bg-slate-800 text-slate-400 hover:text-slate-200";
+            btn.className = "px-3 py-2 text-xs font-semibold rounded-xl border border-slate-700 bg-slate-800 text-slate-400 hover:text-slate-200";
           }
         }
       });
@@ -329,25 +325,25 @@
       });
 
       document.getElementById('statsContainer').innerHTML = `
-        <div class="bg-slate-800/60 p-4 rounded-2xl border border-slate-700/50">
-          <p class="text-xs text-slate-400 font-medium">Загальний потік</p>
-          <p class="text-2xl font-black text-white mt-1">${totalPax} <span class="text-xs font-normal text-slate-400">осіб</span></p>
-          <p class="text-[10px] text-slate-500 mt-1">${payingPax} платні • ${tempPax} тимчасові</p>
+        <div class="bg-slate-800/60 p-3 sm:p-4 rounded-2xl border border-slate-700/50">
+          <p class="text-[11px] sm:text-xs text-slate-400 font-medium">Загальний потік</p>
+          <p class="text-xl sm:text-2xl font-black text-white mt-1">${totalPax} <span class="text-xs font-normal text-slate-400">осіб</span></p>
+          <p class="text-[10px] text-slate-500 mt-0.5">${payingPax} платні • ${tempPax} тимчасові</p>
         </div>
-        <div class="bg-slate-800/60 p-4 rounded-2xl border border-slate-700/50">
-          <p class="text-xs text-slate-400 font-medium">Зібрано каси</p>
-          <p class="text-2xl font-black text-emerald-400 mt-1">${collectedPLN} <span class="text-xs font-normal text-slate-400">PLN</span></p>
-          <p class="text-[10px] text-slate-500 mt-1">Ціль: ${payingPax * 100} PLN</p>
+        <div class="bg-slate-800/60 p-3 sm:p-4 rounded-2xl border border-slate-700/50">
+          <p class="text-[11px] sm:text-xs text-slate-400 font-medium">Зібрано каси</p>
+          <p class="text-xl sm:text-2xl font-black text-emerald-400 mt-1">${collectedPLN} <span class="text-xs font-normal text-slate-400">PLN</span></p>
+          <p class="text-[10px] text-slate-500 mt-0.5">Ціль: ${payingPax * 100} PLN</p>
         </div>
-        <div class="bg-slate-800/60 p-4 rounded-2xl border border-slate-700/50">
-          <p class="text-xs text-slate-400 font-medium">Прийшли (Чек-ін)</p>
-          <p class="text-2xl font-black text-orange-400 mt-1">${checkedInCount} <span class="text-xs font-normal text-slate-400">осіб</span></p>
-          <p class="text-[10px] text-slate-500 mt-1">${Math.round((checkedInCount/totalPax)*100 || 0)}% від списку</p>
+        <div class="bg-slate-800/60 p-3 sm:p-4 rounded-2xl border border-slate-700/50">
+          <p class="text-[11px] sm:text-xs text-slate-400 font-medium">Прийшли (Чек-ін)</p>
+          <p class="text-xl sm:text-2xl font-black text-orange-400 mt-1">${checkedInCount} <span class="text-xs font-normal text-slate-400">осіб</span></p>
+          <p class="text-[10px] text-slate-500 mt-0.5">${Math.round((checkedInCount/totalPax)*100 || 0)}% від списку</p>
         </div>
-        <div class="bg-slate-800/60 p-4 rounded-2xl border border-slate-700/50">
-          <p class="text-xs text-slate-400 font-medium">Статуси оплати</p>
-          <p class="text-2xl font-black text-indigo-400 mt-1">${guests.filter(g=>g.isPaid).length}/${guests.length}</p>
-          <p class="text-[10px] text-slate-500 mt-1">Оплачених броней</p>
+        <div class="bg-slate-800/60 p-3 sm:p-4 rounded-2xl border border-slate-700/50">
+          <p class="text-[11px] sm:text-xs text-slate-400 font-medium">Статуси оплати</p>
+          <p class="text-xl sm:text-2xl font-black text-indigo-400 mt-1">${guests.filter(g=>g.isPaid).length}/${guests.length}</p>
+          <p class="text-[10px] text-slate-500 mt-0.5">Оплачених броней</p>
         </div>
       `;
     }
@@ -371,18 +367,18 @@
         const catClass = g.category === 'Temp' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : (g.category === 'Staff' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30');
 
         const card = document.createElement('div');
-        card.className = `bg-slate-800/80 rounded-2xl p-5 border ${g.checkedIn ? 'border-orange-500/50 bg-orange-950/10' : 'border-slate-700/60'} transition hover:border-slate-600 flex flex-col justify-between`;
+        card.className = `bg-slate-800/80 rounded-2xl p-4 border ${g.checkedIn ? 'border-orange-500/50 bg-orange-950/10' : 'border-slate-700/60'} transition hover:border-slate-600 flex flex-col justify-between`;
 
         card.innerHTML = `
           <div>
-            <div class="flex justify-between items-start gap-2 mb-3">
+            <div class="flex justify-between items-start gap-2 mb-2">
               <div>
                 <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${catClass}">${catName}</span>
-                <h3 class="text-base font-bold text-white mt-1.5">${g.name}</h3>
+                <h3 class="text-base font-bold text-white mt-1">${g.name}</h3>
               </div>
               <div class="flex items-center gap-1">
-                <button onclick="openEditGuestModal('${g.id}')" class="text-slate-400 hover:text-orange-400 p-1.5 transition" title="Редагувати"><i class="fa-solid fa-pen text-xs"></i></button>
-                <button onclick="deleteGuest('${g.id}')" class="text-slate-500 hover:text-red-400 p-1.5 transition" title="Видалити"><i class="fa-solid fa-trash-can text-xs"></i></button>
+                <button onclick="openEditGuestModal('${g.id}')" class="text-slate-400 hover:text-orange-400 p-2 transition" title="Редагувати"><i class="fa-solid fa-pen text-xs"></i></button>
+                <button onclick="deleteGuest('${g.id}')" class="text-slate-500 hover:text-red-400 p-2 transition" title="Видалити"><i class="fa-solid fa-trash-can text-xs"></i></button>
               </div>
             </div>
 
@@ -391,8 +387,8 @@
                 <i class="fa-solid fa-user-group text-slate-500 w-4"></i>
                 <span>Супровід: <strong class="text-white">${compCount} осіб</strong></span>
                 <div class="ml-auto flex items-center gap-1">
-                  <button onclick="removeCompanion('${g.id}')" class="w-5 h-5 bg-slate-700 hover:bg-red-600/50 text-slate-200 rounded flex items-center justify-center font-bold" title="Зменшити">-</button>
-                  <button onclick="addCompanion('${g.id}')" class="w-5 h-5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded flex items-center justify-center font-bold" title="Додати">+</button>
+                  <button onclick="removeCompanion('${g.id}')" class="w-7 h-7 bg-slate-700 active:bg-red-600/50 text-slate-200 rounded-lg flex items-center justify-center font-bold text-sm shadow">-</button>
+                  <button onclick="addCompanion('${g.id}')" class="w-7 h-7 bg-slate-700 active:bg-slate-600 text-slate-200 rounded-lg flex items-center justify-center font-bold text-sm shadow">+</button>
                 </div>
               </div>
               ${g.contact ? `
@@ -405,10 +401,10 @@
           </div>
 
           <div class="pt-3 border-t border-slate-700/50 flex items-center justify-between gap-2">
-            <button onclick="togglePaid('${g.id}')" class="px-3 py-1.5 rounded-xl text-xs font-semibold border transition ${g.isPaid ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40' : 'bg-red-500/20 text-red-400 border-red-500/40'}">
+            <button onclick="togglePaid('${g.id}')" class="px-3 py-2 rounded-xl text-xs font-semibold border transition ${g.isPaid ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40' : 'bg-red-500/20 text-red-400 border-red-500/40'}">
               ${g.isPaid ? 'Оплачено (' + ((1 + compCount) * 100) + ' PLN)' : 'Не оплачено'}
             </button>
-            <button onclick="toggleCheckIn('${g.id}')" class="px-3 py-1.5 rounded-xl text-xs font-semibold transition ${g.checkedIn ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30' : 'bg-slate-700 hover:bg-slate-600 text-slate-200'}">
+            <button onclick="toggleCheckIn('${g.id}')" class="px-3 py-2 rounded-xl text-xs font-semibold transition ${g.checkedIn ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30' : 'bg-slate-700 hover:bg-slate-600 text-slate-200'}">
               ${g.checkedIn ? '✓ На вечірці' : 'Чек-ін'}
             </button>
           </div>
@@ -449,7 +445,7 @@
     }
 
     function deleteGuest(id) {
-      if (confirm('Ви впевнені, що хочете видалити цього гостя?')) {
+      if (confirm('Видалити гостя?')) {
         guests = guests.filter(x => x.id != id);
         renderApp();
       }
@@ -457,7 +453,7 @@
 
     function openAddGuestModal() {
       document.getElementById('editGuestId').value = '';
-      document.getElementById('modalTitle').innerHTML = '<i class="fa-solid fa-user-plus text-orange-500"></i> Зареєструвати нового гостя';
+      document.getElementById('modalTitle').innerHTML = '<i class="fa-solid fa-user-plus text-orange-500"></i> Зареєструвати гостя';
       document.getElementById('newGuestName').value = '';
       document.getElementById('newGuestContact').value = '';
       document.getElementById('newGuestCategory').value = 'Main';
@@ -470,7 +466,7 @@
       const g = guests.find(x => x.id == id);
       if (!g) return;
       document.getElementById('editGuestId').value = g.id;
-      document.getElementById('modalTitle').innerHTML = '<i class="fa-solid fa-pen text-orange-500"></i> Редагувати дані гостя';
+      document.getElementById('modalTitle').innerHTML = '<i class="fa-solid fa-pen text-orange-500"></i> Редагувати дані';
       document.getElementById('newGuestName').value = g.name;
       document.getElementById('newGuestContact').value = g.contact || '';
       document.getElementById('newGuestCategory').value = g.category || 'Main';
@@ -532,30 +528,29 @@
         const tr = document.createElement('tr');
         tr.className = "hover:bg-slate-800/40 transition border-b border-slate-800/40";
         tr.innerHTML = `
-          <td class="p-3 font-mono text-slate-500">${idx + 1}</td>
-          <td class="p-3 font-semibold text-white">${g.name}</td>
-          <td class="p-3"><span class="text-[10px] px-2 py-0.5 rounded bg-slate-800 border border-slate-700">${catName}</span></td>
-          <td class="p-3">
-            <div class="flex items-center gap-1.5">
+          <td class="p-2 font-mono text-slate-500">${idx + 1}</td>
+          <td class="p-2 font-semibold text-white">${g.name}</td>
+          <td class="p-2"><span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700">${catName}</span></td>
+          <td class="p-2">
+            <div class="flex items-center gap-1">
               <span>+${compCount}</span>
-              <button onclick="removeCompanion('${g.id}')" class="px-1.5 py-0.5 bg-slate-800 hover:bg-red-600/40 rounded text-slate-300 font-bold">-</button>
-              <button onclick="addCompanion('${g.id}')" class="px-1.5 py-0.5 bg-slate-800 hover:bg-slate-700 rounded text-slate-300 font-bold">+</button>
+              <button onclick="removeCompanion('${g.id}')" class="w-5 h-5 bg-slate-800 hover:bg-red-600/40 rounded text-slate-300 font-bold text-xs">-</button>
+              <button onclick="addCompanion('${g.id}')" class="w-5 h-5 bg-slate-800 hover:bg-slate-700 rounded text-slate-300 font-bold text-xs">+</button>
             </div>
           </td>
-          <td class="p-3 text-slate-400 truncate max-w-[140px]">${g.contact || '—'}</td>
-          <td class="p-3">
-            <button onclick="togglePaid('${g.id}')" class="px-2 py-1 rounded text-[11px] font-semibold ${g.isPaid ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : 'bg-red-500/20 text-red-400 border border-red-500/40'}">
-              ${g.isPaid ? 'Оплачено' : 'Ні'}
+          <td class="p-2">
+            <button onclick="togglePaid('${g.id}')" class="px-2 py-0.5 rounded text-[10px] font-semibold ${g.isPaid ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : 'bg-red-500/20 text-red-400 border border-red-500/40'}">
+              ${g.isPaid ? 'Так' : 'Ні'}
             </button>
           </td>
-          <td class="p-3">
-            <button onclick="toggleCheckIn('${g.id}')" class="px-2 py-1 rounded text-[11px] font-semibold ${g.checkedIn ? 'bg-orange-500 text-white' : 'bg-slate-800 hover:bg-slate-700 text-slate-400'}">
-              ${g.checkedIn ? '✓ Прийшов' : 'Очікуємо'}
+          <td class="p-2">
+            <button onclick="toggleCheckIn('${g.id}')" class="px-2 py-0.5 rounded text-[10px] font-semibold ${g.checkedIn ? 'bg-orange-500 text-white' : 'bg-slate-800 text-slate-400'}">
+              ${g.checkedIn ? '✓' : '—'}
             </button>
           </td>
-          <td class="p-3 text-right flex items-center justify-end gap-1">
-            <button onclick="openEditGuestModal('${g.id}')" class="text-slate-400 hover:text-orange-400 px-1.5 py-1" title="Редагувати"><i class="fa-solid fa-pen text-xs"></i></button>
-            <button onclick="deleteGuest('${g.id}')" class="text-red-400 hover:underline px-1 py-1" title="Видалити">Видалити</button>
+          <td class="p-2 text-right flex items-center justify-end gap-1">
+            <button onclick="openEditGuestModal('${g.id}')" class="text-slate-400 hover:text-orange-400 p-1" title="Редагувати"><i class="fa-solid fa-pen text-xs"></i></button>
+            <button onclick="deleteGuest('${g.id}')" class="text-red-400 hover:underline p-1" title="Видалити">X</button>
           </td>
         `;
         tbody.appendChild(tr);
